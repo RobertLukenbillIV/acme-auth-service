@@ -137,6 +137,10 @@ public class AuthService {
     }
 
     private RefreshToken createRefreshToken(User user) {
+        // Clean up old refresh tokens for this user to prevent accumulation
+        // This ensures only the most recent refresh token is valid
+        refreshTokenRepository.deleteByUser(user);
+        
         RefreshToken refreshToken = new RefreshToken(
                 UUID.randomUUID().toString(),
                 user,
