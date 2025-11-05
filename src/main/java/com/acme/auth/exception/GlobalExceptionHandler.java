@@ -2,6 +2,8 @@ package com.acme.auth.exception;
 
 import com.acme.auth.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,6 +20,8 @@ import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(
@@ -107,6 +111,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex,
             HttpServletRequest request) {
+        
+        // Log the actual exception for debugging
+        logger.error("Unhandled exception at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         
         ErrorResponse errorResponse = new ErrorResponse();
         errorResponse.setCode("INTERNAL_ERROR");

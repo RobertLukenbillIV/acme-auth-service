@@ -87,7 +87,11 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // TODO: Update allowed origins for production deployment
         // Replace with specific frontend URLs, e.g., List.of("https://acme-ui.example.com")
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        configuration.setAllowedOriginPatterns(List.of(
+            "http://localhost:*", 
+            "http://127.0.0.1:*",
+            "https://*.app.github.dev"  // Allow GitHub Codespaces
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setExposedHeaders(List.of("Authorization"));
