@@ -307,7 +307,37 @@ This specification can be used to:
 ### Running Tests
 
 ```bash
+# Run all tests
 mvn test
+
+# Run tests with coverage report
+mvn test jacoco:report
+
+# View coverage report
+open target/site/jacoco/index.html
+```
+
+### Test Coverage
+
+The project uses JaCoCo for code coverage analysis with a minimum threshold of 60% line coverage. Coverage reports are generated automatically during the test phase and uploaded to Codecov in CI.
+
+**Unit Tests:**
+- `AuthServiceTest`: Comprehensive service layer testing
+- `JwtTokenProviderTest`: JWT token generation and validation
+- `AuthControllerTest`: REST endpoint testing with MockMvc
+- `RateLimitingFilterTest`: Rate limiting behavior verification
+
+### Code Quality
+
+```bash
+# Run SpotBugs static analysis
+mvn spotbugs:check
+
+# Run Checkstyle for code style
+mvn checkstyle:check
+
+# Run OWASP Dependency Check for security vulnerabilities
+mvn dependency-check:check
 ```
 
 ### H2 Console
@@ -327,6 +357,57 @@ http://localhost:8080/h2-console
 mvn clean package -DskipTests
 java -jar target/acme-auth-service-1.0.0.jar --spring.profiles.active=prod
 ```
+
+### Docker
+
+Build and run the service in Docker:
+
+```bash
+# Build Docker image
+docker build -t acme-auth-service:latest .
+
+# Run with Docker
+docker run -p 8080:8080 \
+  -e JWT_SECRET=your-secret-key \
+  -e DATABASE_URL=jdbc:postgresql://host:5432/acme_auth \
+  -e DATABASE_PASSWORD=your-password \
+  acme-auth-service:latest
+
+# Or use Docker Compose for local development
+docker-compose up -d
+```
+
+The Docker Compose setup includes PostgreSQL, Prometheus, and Grafana for a complete local development environment.
+
+## CI/CD
+
+### Continuous Integration
+
+The project uses GitHub Actions for automated testing and quality checks:
+
+- **Build & Test**: Runs on every push and pull request
+- **Code Coverage**: Generates coverage reports and uploads to Codecov
+- **Security Scanning**: OWASP dependency check for vulnerabilities
+- **Code Quality**: SpotBugs and Checkstyle analysis
+
+See `.github/workflows/ci.yml` for configuration.
+
+### Continuous Deployment
+
+Deployment workflow supports staging and production environments:
+
+```bash
+# Trigger deployment via GitHub Actions
+# Go to Actions tab > Deploy to Production > Run workflow
+```
+
+Features:
+- Database migrations via Flyway
+- Docker image building and publishing
+- Health checks after deployment
+- Slack notifications
+
+See `.github/workflows/deploy.yml` for configuration and `PRODUCTION.md` for detailed deployment guide.
 
 ## Project Structure
 

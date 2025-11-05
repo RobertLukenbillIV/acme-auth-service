@@ -1,0 +1,101 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build application
+      run: mvn clean package -DskipTests -B
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ secrets.CONTAINER_REGISTRY }}
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.CONTAINER_REGISTRY }}/acme-auth-service:${{ github.sha }}
+          ${{ secrets.CONTAINER_REGISTRY }}/acme-auth-service:${{ github.event.inputs.environment }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Run database migrations
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        DATABASE_USER: ${{ secrets.DATABASE_USER }}
+        DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+      run: |
+        mvn flyway:migrate \
+          -Dflyway.url=$DATABASE_URL \
+          -Dflyway.user=$DATABASE_USER \
+          -Dflyway.password=$DATABASE_PASSWORD
+
+    - name: Deploy to Cloud Run (example for GCP)
+      if: ${{ secrets.GCP_PROJECT_ID }}
+      run: |
+        echo "Deploying to Google Cloud Run..."
+        # Example deployment - adjust for your cloud provider
+        # gcloud run deploy acme-auth-service \
+        #   --image ${{ secrets.CONTAINER_REGISTRY }}/acme-auth-service:${{ github.sha }} \
+        #   --platform managed \
+        #   --region us-central1 \
+        #   --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+        #   --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+
+    - name: Deploy to Kubernetes
+      if: ${{ secrets.KUBE_CONFIG }}
+      run: |
+        echo "Deploying to Kubernetes..."
+        # Example K8s deployment
+        # kubectl set image deployment/acme-auth-service \
+        #   acme-auth-service=${{ secrets.CONTAINER_REGISTRY }}/acme-auth-service:${{ github.sha }}
+        # kubectl rollout status deployment/acme-auth-service
+
+    - name: Health check
+      run: |
+        echo "Waiting for deployment to be ready..."
+        sleep 30
+        # curl -f ${{ secrets.APP_URL }}/actuator/health || exit 1
+
+    - name: Notify deployment
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Deployment to ${{ github.event.inputs.environment }}: ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
