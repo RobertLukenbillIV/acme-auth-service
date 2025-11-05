@@ -10,21 +10,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: acme_auth_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -47,11 +32,6 @@ jobs:
       run: mvn clean compile -B
 
     - name: Run tests
-      env:
-        JWT_SECRET: ${{ secrets.JWT_SECRET_TEST || 'test-secret-key-for-ci-that-is-long-enough-for-hs256-algorithm-minimum-256-bits-required' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/acme_auth_test
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: postgres
       run: mvn test -B
 
     - name: Generate test coverage report
