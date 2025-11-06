@@ -5,7 +5,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final MediaType PROBLEM_JSON = MediaType.parseMediaType("application/problem+json");
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(
@@ -44,7 +47,10 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getRequestURI());
         errorResponse.setRequestId(UUID.randomUUID());
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -59,7 +65,10 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getRequestURI());
         errorResponse.setRequestId(UUID.randomUUID());
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -74,7 +83,10 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getRequestURI());
         errorResponse.setRequestId(UUID.randomUUID());
 
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
     }
 
     @ExceptionHandler(TokenRefreshException.class)
@@ -89,7 +101,28 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getRequestURI());
         errorResponse.setRequestId(UUID.randomUUID());
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            HttpServletRequest request) {
+        
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setCode("FORBIDDEN");
+        errorResponse.setMessage(ex.getMessage());
+        errorResponse.setTimestamp(Instant.now());
+        errorResponse.setPath(request.getRequestURI());
+        errorResponse.setRequestId(UUID.randomUUID());
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
     }
 
     @ExceptionHandler({BadCredentialsException.class, AuthenticationException.class})
@@ -104,7 +137,10 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getRequestURI());
         errorResponse.setRequestId(UUID.randomUUID());
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
     }
 
     @ExceptionHandler(Exception.class)
@@ -122,6 +158,9 @@ public class GlobalExceptionHandler {
         errorResponse.setPath(request.getRequestURI());
         errorResponse.setRequestId(UUID.randomUUID());
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .contentType(PROBLEM_JSON)
+                .body(errorResponse);
     }
 }
