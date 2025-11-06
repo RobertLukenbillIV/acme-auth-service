@@ -2,11 +2,13 @@ package com.acme.auth.service;
 
 import com.acme.auth.dto.*;
 import com.acme.auth.entity.RefreshToken;
+import com.acme.auth.entity.Tenant;
 import com.acme.auth.entity.User;
 import com.acme.auth.exception.EmailAlreadyExistsException;
 import com.acme.auth.exception.ResourceNotFoundException;
 import com.acme.auth.exception.TokenRefreshException;
 import com.acme.auth.repository.RefreshTokenRepository;
+import com.acme.auth.repository.TenantRepository;
 import com.acme.auth.repository.UserRepository;
 import com.acme.auth.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,12 +22,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -35,11 +39,13 @@ public class AuthService {
     private long refreshTokenDurationMs;
 
     public AuthService(UserRepository userRepository,
+                       TenantRepository tenantRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        PasswordEncoder passwordEncoder,
                        AuthenticationManager authenticationManager,
                        JwtTokenProvider tokenProvider) {
         this.userRepository = userRepository;
+        this.tenantRepository = tenantRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -52,24 +58,23 @@ public class AuthService {
             throw new EmailAlreadyExistsException("Email is already in use");
         }
 
+        // Get or create default tenant
+        Tenant defaultTenant = tenantRepository.findBySlug("default")
+                .orElseThrow(() -> new ResourceNotFoundException("Default tenant not found"));
+
+        // Create user with default tenant and ROLE_USER
         User user = new User(
                 signupRequest.getEmail(),
                 passwordEncoder.encode(signupRequest.getPassword()),
-                signupRequest.getName()
+                signupRequest.getName(),
+                defaultTenant,
+                List.of("ROLE_USER")
         );
 
         User savedUser = userRepository.save(user);
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        signupRequest.getEmail(),
-                        signupRequest.getPassword()
-                )
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        String accessToken = tokenProvider.generateToken(authentication);
+        // Generate JWT token with tenant, roles, and scopes
+        String accessToken = tokenProvider.generateTokenFromUser(savedUser);
         RefreshToken refreshToken = createRefreshToken(savedUser);
 
         return new AuthResponse(
@@ -90,11 +95,11 @@ public class AuthService {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        String accessToken = tokenProvider.generateToken(authentication);
-
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        // Generate JWT token with tenant, roles, and scopes
+        String accessToken = tokenProvider.generateTokenFromUser(user);
         RefreshToken refreshToken = createRefreshToken(user);
 
         return new AuthResponse(
@@ -117,7 +122,8 @@ public class AuthService {
         }
 
         User user = refreshToken.getUser();
-        String accessToken = tokenProvider.generateTokenFromEmail(user.getEmail());
+        // Generate JWT token with tenant, roles, and scopes
+        String accessToken = tokenProvider.generateTokenFromUser(user);
 
         return new AuthResponse(
                 accessToken,
